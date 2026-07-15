@@ -1,0 +1,31 @@
+Local Codex Adaptive Micro-Agent V7 — rapport de validation
+Date: 2026-07-16
+
+Résultat: 31 tests réussis.
+Commande: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q
+Durée observée: 119.79 s
+
+Couverture principale:
+- validation et graphe du plan initial;
+- micro-tâches et dépendances;
+- expansion bornée d'un parent en enfants nécessaires;
+- couverture cumulative des critères du parent;
+- protection grep/read/edit/write/shell;
+- scout initial et scout complémentaire demandé par le codeur;
+- boucle codeur, tests, double revue et juge;
+- ticket de réparation sans reformulation LLM;
+- validation globale;
+- documentation pilotée uniquement par TASK.md;
+- lancement en une commande et commit final unique;
+- installation dans un dépôt Git temporaire;
+- canal de contrôle humain atomique;
+- pause et reprise pendant un appel codeur;
+- injection durable d'une note humaine dans les prompts suivants;
+- révision avec capture du diff, rollback au checkpoint et rejeu;
+- replan humain limité à la décomposition du parent actif;
+- reviewer supplémentaire rendu obligatoire par l'humain;
+- arrêt humain avec worktree et preuves conservés.
+
+Les tests utilisent un faux exécutable Qwen déterministe. Ils valident la mécanique
+du superviseur, y compris les interruptions de sous-processus, mais pas la qualité
+intellectuelle d'un modèle local réel ni les commandes spécifiques d'un dépôt utilisateur.

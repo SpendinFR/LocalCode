@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {"type": "string", "enum": ["DONE", "BLOCKED"]},
+    "summary": {"type": "string"},
+    "command_corrections": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "original": {"type": "string"},
+          "replacement": {"type": "string"},
+          "reason": {"type": "string"}
+        },
+        "required": ["original", "replacement", "reason"]
+      }
+    },
+    "validated_commands": {"type": "array", "maxItems": 6, "items": {"type": "string"}},
+    "escalation": {
+      "type": "string",
+      "enum": ["NONE", "CODE", "COMMAND", "ENVIRONMENT", "CONTEXT", "PLAN"]
+    },
+    "unresolved": {"type": "array", "maxItems": 5, "items": {"type": "string"}},
+    "research_requests": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "question": {"type": "string"},
+          "symbols": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+          "suspected_paths": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+          "reason": {"type": "string"}
+        },
+        "required": ["question", "symbols", "suspected_paths", "reason"]
+      }
+    },
+    "addressed_finding_ids": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+    "unresolved_finding_ids": {"type": "array", "maxItems": 8, "items": {"type": "string"}}
+  },
+  "required": [
+    "status", "summary", "command_corrections", "validated_commands", "escalation",
+    "unresolved", "research_requests", "addressed_finding_ids", "unresolved_finding_ids"
+  ]
+}

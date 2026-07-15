@@ -1,0 +1,85 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "accepted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "problem": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "required_test": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "observed": {
+            "type": "string"
+          },
+          "mission_anchor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "severity",
+          "file",
+          "symbol",
+          "mission_anchor",
+          "scenario",
+          "expected",
+          "observed",
+          "problem",
+          "evidence",
+          "required_test"
+        ]
+      },
+      "maxItems": 4
+    },
+    "rejected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "reason"
+        ]
+      }
+    }
+  },
+  "required": [
+    "accepted",
+    "rejected"
+  ]
+}

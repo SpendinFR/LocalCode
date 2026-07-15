@@ -1,0 +1,114 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "FIX_COMMAND",
+        "RETRY_CODE",
+        "EXPAND_MICROTASK",
+        "ENVIRONMENT_BLOCKED"
+      ]
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "corrected_commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "original": {
+            "type": "string"
+          },
+          "replacement": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "original",
+          "replacement",
+          "reason"
+        ]
+      }
+    },
+    "repair_task": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "likely_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6
+        },
+        "symbols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10
+        },
+        "acceptance": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10
+        },
+        "test_commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6
+        },
+        "forbidden_changes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10
+        }
+      },
+      "required": [
+        "title",
+        "goal",
+        "likely_files",
+        "symbols",
+        "invariants",
+        "acceptance",
+        "test_commands",
+        "forbidden_changes"
+      ]
+    }
+  },
+  "required": [
+    "decision",
+    "rationale",
+    "corrected_commands",
+    "repair_task"
+  ]
+}

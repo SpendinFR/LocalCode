@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "REVISE"
+      ]
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ]
+          },
+          "microtask_id": {
+            "type": "string"
+          },
+          "problem": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "required_correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "microtask_id",
+          "problem",
+          "evidence",
+          "required_correction"
+        ]
+      }
+    }
+  },
+  "required": [
+    "verdict",
+    "issues"
+  ]
+}

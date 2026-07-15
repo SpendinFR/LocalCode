@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {"type": "string", "enum": ["READY", "INSUFFICIENT"]},
+    "summary": {"type": "string"},
+    "files": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {"type": "string"},
+          "why": {"type": "string"},
+          "symbols": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+          "ranges": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "start": {"type": "integer", "minimum": 1},
+                "end": {"type": "integer", "minimum": 1},
+                "reason": {"type": "string"}
+              },
+              "required": ["start", "end", "reason"]
+            }
+          }
+        },
+        "required": ["path", "why", "symbols", "ranges"]
+      }
+    },
+    "relations": {"type": "array", "maxItems": 16, "items": {"type": "string"}},
+    "tests": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+    "facts": {"type": "array", "maxItems": 16, "items": {"type": "string"}},
+    "unknowns": {"type": "array", "maxItems": 8, "items": {"type": "string"}}
+  },
+  "required": ["status", "summary", "files", "relations", "tests", "facts", "unknowns"]
+}

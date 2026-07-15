@@ -1,0 +1,74 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FINDINGS"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "observed": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "suggested_test": {
+            "type": "string"
+          },
+          "mission_anchor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "category",
+          "file",
+          "symbol",
+          "scenario",
+          "expected",
+          "observed",
+          "evidence",
+          "suggested_test",
+          "mission_anchor"
+        ]
+      },
+      "maxItems": 5
+    }
+  },
+  "required": [
+    "verdict",
+    "findings"
+  ]
+}

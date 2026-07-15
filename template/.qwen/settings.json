@@ -1,0 +1,65 @@
+{
+  "env": {
+    "OLLAMA_API_KEY": "ollama"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "qwen3:8b",
+        "name": "Qwen 3 8B local - planner/coder/reviewer",
+        "envKey": "OLLAMA_API_KEY",
+        "baseUrl": "http://localhost:11434/v1",
+        "generationConfig": {
+          "timeout": 600000,
+          "maxRetries": 1,
+          "contextWindowSize": 8192,
+          "samplingParams": {
+            "temperature": 0.15,
+            "top_p": 0.85,
+            "max_tokens": 4096
+          }
+        }
+      },
+      {
+        "id": "qwen2.5-coder:7b",
+        "name": "Qwen 2.5 Coder 7B local - scout/technical reviewer/judge",
+        "envKey": "OLLAMA_API_KEY",
+        "baseUrl": "http://localhost:11434/v1",
+        "generationConfig": {
+          "timeout": 600000,
+          "maxRetries": 1,
+          "contextWindowSize": 12288,
+          "samplingParams": {
+            "temperature": 0.1,
+            "top_p": 0.8,
+            "max_tokens": 4096
+          }
+        }
+      }
+    ]
+  },
+  "memory": {
+    "enableManagedAutoMemory": false,
+    "enableManagedAutoDream": false
+  },
+  "tools": {
+    "shell": {
+      "enableInteractiveShell": false
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(read_file|grep_search|glob|read_many_files|read_multiple_files|run_shell_command|write_file|edit)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .microagent/context_guard.py",
+            "name": "microagent-context-guard",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
