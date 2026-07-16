@@ -3,15 +3,30 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 
 def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, cwd=cwd, text=True, capture_output=True)
+
+
+def router_models() -> set[str]:
+    request = urllib.request.Request(
+        "http://127.0.0.1:8080/models?reload=1",
+        headers={"Authorization": "Bearer local"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    return {
+        str(item.get("id", ""))
+        for item in payload.get("data", [])
+        if item.get("id")
+    }
 
 
 def main() -> int:
@@ -29,6 +44,7 @@ def main() -> int:
             errors.append(f"{binary} introuvable dans PATH")
     if not task.exists():
         errors.append(f"mission introuvable: {task}")
+
     cfg_path = repo / ".microagent" / "config.json"
     if not cfg_path.exists():
         errors.append(".microagent/config.json absent: lance d'abord l'installateur")
@@ -41,43 +57,38 @@ def main() -> int:
             cfg = {}
 
     if shutil.which("git"):
-        p = run(["git", "rev-parse", "--is-inside-work-tree"], repo)
-        if p.returncode != 0 or p.stdout.strip() != "true":
+        proc = run(["git", "rev-parse", "--is-inside-work-tree"], repo)
+        if proc.returncode != 0 or proc.stdout.strip() != "true":
             errors.append(f"{repo} n'est pas un dépôt Git")
 
     if shutil.which("qwen"):
-        p = run(["qwen", "--help"], repo)
-        text = (p.stdout or "") + (p.stderr or "")
-        for flag in ("--json-schema", "--max-tool-calls", "--max-wall-time", "--approval-mode"):
+        proc = run(["qwen", "--help"], repo)
+        text = (proc.stdout or "") + (proc.stderr or "")
+        for flag in (
+            "--json-schema", "--max-tool-calls", "--max-wall-time",
+            "--approval-mode", "--experimental-lsp",
+        ):
             if flag not in text:
                 errors.append(f"Qwen Code trop ancien: option absente {flag}")
 
-    skip_ollama = os.environ.get("MICROAGENT_SKIP_OLLAMA_CHECK") == "1"
-    if not skip_ollama:
-        if not shutil.which("ollama"):
-            errors.append("ollama introuvable (ou définis MICROAGENT_SKIP_OLLAMA_CHECK=1 pour un autre serveur)")
-        else:
-            p = run(["ollama", "list"], repo)
-            if p.returncode != 0:
-                errors.append("Ollama ne répond pas: démarre le service")
-            else:
-                available = {
-                    line.split()[0] for line in p.stdout.splitlines()[1:] if line.strip()
-                }
-                models = {
-                    str(cfg.get(key, ""))
-                    for key in (
-                        "planner_model", "scout_model", "coder_model",
-                        "architecture_reviewer_model", "execution_reviewer_model", "judge_model"
-                    )
-                    if cfg.get(key)
-                }
-                missing = [
-                    m for m in sorted(models)
-                    if m not in available and f"{m}:latest" not in available
-                ]
-                if missing:
-                    errors.append("modèles Ollama absents: " + ", ".join(missing))
+    try:
+        available = router_models()
+        required = {
+            str(cfg.get(key, ""))
+            for key in (
+                "planner_model", "scout_model", "coder_model",
+                "architecture_reviewer_model", "execution_reviewer_model", "judge_model",
+            )
+            if cfg.get(key)
+        }
+        missing = sorted(required - available)
+        if missing:
+            errors.append("modèles absents du routeur llama.cpp: " + ", ".join(missing))
+    except (OSError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
+        errors.append(
+            "routeur llama.cpp indisponible sur http://127.0.0.1:8080; "
+            f"lance start-model-router.ps1 ({exc})"
+        )
 
     if errors:
         print("PRÉREQUIS NON SATISFAITS", file=sys.stderr)

@@ -1,9 +1,9 @@
 {
-  "planner_model": "qwen3:8b",
-  "coder_model": "qwen3:8b",
-  "architecture_reviewer_model": "qwen3:8b",
-  "execution_reviewer_model": "qwen2.5-coder:7b",
-  "judge_model": "qwen2.5-coder:7b",
+  "planner_model": "qwen35-9b",
+  "coder_model": "qwen3coder30-iq2",
+  "architecture_reviewer_model": "qwen25coder14-q3",
+  "execution_reviewer_model": "qwen25coder14-q3",
+  "judge_model": "qwen35-9b",
   "planner_approval_mode": "plan",
   "reviewer_approval_mode": "plan",
   "coder_approval_mode": "auto",
@@ -39,7 +39,7 @@
   "auto_commit": true,
   "sandbox": false,
   "context_parent": ".agent-context",
-  "unload_ollama_between_model_switches": true,
+  "unload_ollama_between_model_switches": false,
   "allowed_command_prefixes": [
     "pytest",
     "python -m pytest",
@@ -77,7 +77,7 @@
     "pwsh -NoProfile -Command"
   ],
   "verify_qwen_cli_flags": true,
-  "scout_model": "qwen2.5-coder:7b",
+  "scout_model": "qwen35-9b",
   "max_context_requests_per_microtask": 2,
   "max_scout_files": 10,
   "scout_limits": {

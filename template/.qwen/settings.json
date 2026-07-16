@@ -1,37 +1,53 @@
 {
   "env": {
-    "OLLAMA_API_KEY": "ollama"
+    "LLAMA_API_KEY": "local"
   },
   "modelProviders": {
     "openai": [
       {
-        "id": "qwen3:8b",
-        "name": "Qwen 3 8B local - planner/coder/reviewer",
-        "envKey": "OLLAMA_API_KEY",
-        "baseUrl": "http://localhost:11434/v1",
+        "id": "qwen35-9b",
+        "name": "Qwen 3.5 9B - planner, scout and judge",
+        "envKey": "LLAMA_API_KEY",
+        "baseUrl": "http://127.0.0.1:8080/v1",
         "generationConfig": {
-          "timeout": 600000,
+          "timeout": 900000,
           "maxRetries": 1,
           "contextWindowSize": 8192,
           "samplingParams": {
-            "temperature": 0.15,
-            "top_p": 0.85,
+            "temperature": 0.05,
+            "top_p": 0.8,
             "max_tokens": 4096
           }
         }
       },
       {
-        "id": "qwen2.5-coder:7b",
-        "name": "Qwen 2.5 Coder 7B local - scout/technical reviewer/judge",
-        "envKey": "OLLAMA_API_KEY",
-        "baseUrl": "http://localhost:11434/v1",
+        "id": "qwen3coder30-iq2",
+        "name": "Qwen 3 Coder 30B A3B UD-IQ2_XXS - coder",
+        "envKey": "LLAMA_API_KEY",
+        "baseUrl": "http://127.0.0.1:8080/v1",
         "generationConfig": {
-          "timeout": 600000,
+          "timeout": 1200000,
           "maxRetries": 1,
-          "contextWindowSize": 12288,
+          "contextWindowSize": 8192,
           "samplingParams": {
             "temperature": 0.1,
             "top_p": 0.8,
+            "max_tokens": 4096
+          }
+        }
+      },
+      {
+        "id": "qwen25coder14-q3",
+        "name": "Qwen 2.5 Coder 14B Q3_K_M - independent reviewer",
+        "envKey": "LLAMA_API_KEY",
+        "baseUrl": "http://127.0.0.1:8080/v1",
+        "generationConfig": {
+          "timeout": 900000,
+          "maxRetries": 1,
+          "contextWindowSize": 8192,
+          "samplingParams": {
+            "temperature": 0.0,
+            "top_p": 0.75,
             "max_tokens": 4096
           }
         }
