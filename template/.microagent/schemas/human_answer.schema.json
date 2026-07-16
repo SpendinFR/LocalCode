@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "answer": {"type": "string"},
+    "evidence": {"type": "array", "maxItems": 6, "items": {"type": "string"}},
+    "uncertainty": {"type": "string"}
+  },
+  "required": ["answer", "evidence", "uncertainty"]
+}

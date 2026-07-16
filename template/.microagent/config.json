@@ -4,32 +4,63 @@
   "architecture_reviewer_model": "qwen25coder14-q3",
   "execution_reviewer_model": "qwen25coder14-q3",
   "judge_model": "qwen35-9b",
+  "scout_model": "qwen35-9b",
+  "recovery_model": "qwen35-9b",
+  "model_fallbacks": {
+    "qwen35-9b": "qwen25coder14-q3",
+    "qwen25coder14-q3": "qwen35-9b",
+    "qwen3coder30-iq2": "qwen35-9b"
+  },
+  "model_budgets": {
+    "qwen35-9b": {
+      "context": 8192,
+      "output": 2200,
+      "tool_reserve": 2900,
+      "safety": 700
+    },
+    "qwen3coder30-iq2": {
+      "context": 8192,
+      "output": 2200,
+      "tool_reserve": 3600,
+      "safety": 700
+    },
+    "qwen25coder14-q3": {
+      "context": 8192,
+      "output": 1700,
+      "tool_reserve": 3100,
+      "safety": 700
+    }
+  },
   "planner_approval_mode": "plan",
   "reviewer_approval_mode": "plan",
   "coder_approval_mode": "auto",
+  "human_approval_mode": "commands",
+  "approval_timeout_seconds": 900,
+  "max_qwen_retries": 2,
+  "model_capability_probe": true,
   "max_plan_revisions": 2,
   "max_dynamic_replans": 3,
   "max_repairs_per_microtask": 2,
   "max_global_repair_cycles": 2,
   "max_microtasks": 20,
   "planner_limits": {
-    "turns": 36,
-    "tool_calls": 72,
+    "turns": 30,
+    "tool_calls": 58,
     "wall_time": "30m"
   },
   "coder_limits": {
-    "turns": 50,
-    "tool_calls": 120,
+    "turns": 42,
+    "tool_calls": 92,
     "wall_time": "60m"
   },
   "reviewer_limits": {
-    "turns": 28,
-    "tool_calls": 65,
+    "turns": 24,
+    "tool_calls": 52,
     "wall_time": "25m"
   },
   "judge_limits": {
-    "turns": 24,
-    "tool_calls": 50,
+    "turns": 20,
+    "tool_calls": 42,
     "wall_time": "20m"
   },
   "use_worktree": true,
@@ -77,21 +108,23 @@
     "pwsh -NoProfile -Command"
   ],
   "verify_qwen_cli_flags": true,
-  "scout_model": "qwen35-9b",
-  "max_context_requests_per_microtask": 2,
+  "max_context_requests_per_microtask": 3,
+  "human_question_after_context_rounds": 2,
+  "max_human_questions_per_microtask": 2,
+  "max_human_questions_per_run": 5,
   "max_scout_files": 10,
   "scout_limits": {
-    "turns": 24,
-    "tool_calls": 55,
+    "turns": 20,
+    "tool_calls": 44,
     "wall_time": "20m"
   },
   "context_guard": {
-    "max_lines_per_read": 180,
-    "max_grep_matches": 30,
+    "max_lines_per_read": 160,
+    "max_grep_matches": 24,
     "deny_broad_globs": true,
     "block_shell_file_reads": true,
-    "max_new_file_chars": 30000,
-    "max_edit_chars": 16000,
+    "max_new_file_chars": 26000,
+    "max_edit_chars": 14000,
     "deny_replace_all": true
   },
   "max_files_per_microtask": 6,
@@ -106,15 +139,15 @@
   "max_children_per_expansion": 4,
   "max_added_microtasks_total": 8,
   "human_control_enabled": true,
-  "human_control_poll_seconds": 1.0,
+  "human_control_poll_seconds": 0.5,
   "max_human_interventions_total": 100,
   "max_human_context_records": 30,
   "max_human_plan_restarts": 2,
   "max_human_revisions_per_target": 3,
   "max_human_replans_total": 3,
   "max_human_global_revisions": 3,
-  "max_human_prompt_records": 12,
-  "max_human_prompt_chars": 12000,
+  "max_human_prompt_records": 5,
+  "max_human_prompt_chars": 4000,
   "max_human_doc_review_repairs": 1,
   "enable_lsp": true
 }

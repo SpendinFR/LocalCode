@@ -20,9 +20,11 @@ from core import (
     CommandResult,
     apply_expansion_fragment,
     classify_failure,
+    cli_command,
     load_json,
     plan_task_map,
     ready_tasks,
+    resolve_cli,
     result_dict,
     shell_command,
     save_json,
@@ -87,6 +89,7 @@ class Orchestrator:
         self.context_dir = self.worktree / str(self.cfg.get("context_parent", ".agent-context")) / run_name
         self.checkpoint_sha = self.base
         self.current_model: str | None = None
+        self.qwen_prefix: list[str] | None = None
         self.task_rel = ""
         self.last_failure_path: Path | None = None
         self.state: dict[str, Any] = {
@@ -460,12 +463,15 @@ class Orchestrator:
             return str(path)
 
     def preflight(self) -> None:
-        for binary in ("git", "qwen"):
-            if not shutil.which(binary):
-                raise RuntimeError(f"{binary} introuvable dans PATH")
+        if not shutil.which("git"):
+            raise RuntimeError("git introuvable dans PATH")
+        self.qwen_prefix = resolve_cli("qwen")
+        if not self.qwen_prefix:
+            raise RuntimeError("qwen introuvable dans PATH")
         if self.cfg.get("verify_qwen_cli_flags", True):
             help_proc = subprocess.run(
-                ["qwen", "--help"], cwd=self.source, text=True, capture_output=True
+                cli_command(self.qwen_prefix, ["--help"]),
+                cwd=self.source, text=True, capture_output=True
             )
             help_text = (help_proc.stdout or "") + "\n" + (help_proc.stderr or "")
             required_flags = [
@@ -608,26 +614,28 @@ class Orchestrator:
             stem = f"{index:03d}-{slug(label)}-a{attempt}"
             (log_dir / f"{stem}.prompt.txt").write_text(effective_prompt, encoding="utf-8")
 
-            command = [
-                "qwen",
-                *(["--experimental-lsp"] if self.cfg.get("enable_lsp", True) else []),
-                "-p",
-                effective_prompt,
-                "--model",
-                model,
-                "--approval-mode",
-                approval,
-                "--max-session-turns",
-                str(limits.turns),
-                "--max-tool-calls",
-                str(limits.tool_calls),
-                "--max-wall-time",
-                limits.wall_time,
-                "--json-schema",
-                f"@{(SCHEMAS / schema_name).resolve()}",
-                "--output-format",
-                "text",
-            ]
+            command = cli_command(
+                self.qwen_prefix or resolve_cli("qwen") or ["qwen"],
+                [
+                    *(["--experimental-lsp"] if self.cfg.get("enable_lsp", True) else []),
+                    "-p",
+                    effective_prompt,
+                    "--model",
+                    model,
+                    "--approval-mode",
+                    approval,
+                    "--max-session-turns",
+                    str(limits.turns),
+                    "--max-tool-calls",
+                    str(limits.tool_calls),
+                    "--max-wall-time",
+                    limits.wall_time,
+                    "--json-schema",
+                    f"@{(SCHEMAS / schema_name).resolve()}",
+                    "--output-format",
+                    "text",
+                ],
+            )
             excluded = excluded_tools_override or (
                 "run_shell_command,write_file,edit,agent" if read_only else "agent"
             )

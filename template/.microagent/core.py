@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
+import shutil
 import subprocess
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -21,10 +24,69 @@ class CommandResult:
     shell_family: str
 
 
+def resolve_cli(name: str) -> list[str] | None:
+    """Résout un CLI, y compris un shim Python sans extension sous Windows/CI."""
+    resolved = shutil.which(name)
+    if resolved:
+        return [resolved]
+    for raw_directory in os.environ.get("PATH", "").split(os.pathsep):
+        directory = raw_directory.strip().strip('"')
+        if not directory:
+            continue
+        candidate = Path(directory) / name
+        if not candidate.is_file():
+            continue
+        try:
+            first_line = candidate.open("r", encoding="utf-8", errors="replace").readline()
+        except OSError:
+            continue
+        if first_line.startswith("#!") and "python" in first_line.lower():
+            return [sys.executable, "-S", str(candidate)]
+    return None
+
+
+def cli_command(prefix: list[str], arguments: list[str]) -> list[str]:
+    """Construit argv sans repasser le prompt par une couche shell."""
+    return [*prefix, *arguments]
+
+
+def _strip_windows_argument_quotes(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        return value[1:-1]
+    return value
+
+
+def _windows_direct_command(command: str) -> list[str] | None:
+    """Évite cmd.exe pour un exécutable absolu entre guillemets.
+
+    Python transmet autrement les guillemets à cmd.exe sous une forme échappée que
+    certaines versions de Windows interprètent comme faisant partie du nom du programme.
+    Les commandes contenant des opérateurs shell restent confiées à cmd.exe.
+    """
+    match = re.match(r'^\s*"([^"]+)"(?:\s+(.*?))?\s*$', command, re.DOTALL)
+    if not match:
+        return None
+    executable = match.group(1)
+    tail = (match.group(2) or "").strip()
+    if any(operator in tail for operator in ("&&", "||", "|", ">", "<")):
+        return None
+    if not os.path.isfile(executable):
+        return None
+    try:
+        arguments = shlex.split(tail, posix=False) if tail else []
+    except ValueError:
+        return None
+    return [executable, *(_strip_windows_argument_quotes(item) for item in arguments)]
+
+
 def shell_command(command: str) -> tuple[list[str], str]:
-    """Use the same broad shell family as Qwen Code: cmd.exe on Windows, bash elsewhere."""
+    """Utilise un argv direct quand c'est sûr, cmd.exe pour le reste sous Windows."""
     if os.name == "nt":
-        return ["cmd.exe", "/d", "/s", "/c", command], "cmd"
+        direct = _windows_direct_command(command)
+        if direct is not None:
+            return direct, "direct"
+        comspec = os.environ.get("COMSPEC") or "cmd.exe"
+        return [comspec, "/d", "/s", "/c", command], "cmd"
     return ["bash", "-lc", command], "bash"
 
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import queue
 import shlex
 import subprocess
@@ -9,30 +10,44 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
-ACTIONS = {"note", "pause", "resume", "review", "revise", "replan", "abort", "status"}
-NEEDS_MESSAGE = {"note", "review", "revise", "replan"}
+ACTIONS = {
+    "note", "constraint", "pause", "resume", "review", "revise", "replan", "abort",
+    "status", "stats", "ask", "answer", "approve", "deny", "approval",
+}
+NEEDS_MESSAGE = {"note", "constraint", "review", "revise", "replan", "ask", "answer"}
 
 HELP = r"""
 Console LocalCode interactive
 
-Texte normal                  note durable sur la cible courante
-/help                         affiche cette aide
-/status                       run, phase, tâche, opération et worktree
-/target M3                    cible les prochaines interventions sur M3
-/target current               revient à la phase ou tâche active
-/file add docs\architecture.md joint un fichier aux interventions suivantes
-/file remove CHEMIN           retire un fichier joint
-/file clear                   vide la liste des fichiers joints
-/files                        affiche cible et fichiers actifs
-/note MESSAGE                 note explicite
-/review MESSAGE               reviewer supplémentaire obligatoire
-/pause [RAISON]               suspend le sous-processus actif et garde le worktree
-/resume [MESSAGE]             reprend en conservant le diff du worktree
-/revise MESSAGE               capture le diff, revient au checkpoint et rejoue la cible
-/replan MESSAGE               revient au checkpoint et décompose seulement la tâche active
-/abort [RAISON]               arrête le run en gardant état, preuves et worktree
-/detach                       quitte la saisie; le run continue
+Texte normal                    note durable sur la cible courante
+/help                           affiche cette aide
+/status                         affiche run, phase, tâche, opération, worktree et attentes
+/stats                          affiche durées, tokens estimés, retries et changements de modèle
+/target M3                      cible les prochaines interventions sur M3
+/target current                 revient à la cible active
+/file add CHEMIN                joint un fichier aux interventions suivantes
+/file remove CHEMIN             retire un fichier joint
+/file clear                     vide la liste
+/files                          affiche cible et fichiers
+/note MESSAGE                   note explicite
+/constraint MESSAGE             contrainte dure vérifiée avant checkpoint
+/ask QUESTION                   question au prochain point sûr; réponse en lecture seule
+/answer Q-... MESSAGE           répond à une question bloquante de l'agent
+/review MESSAGE                 reviewer supplémentaire obligatoire
+/pause [RAISON]                 interrompt le sous-processus actif
+/resume [MESSAGE]               reprend en conservant le diff
+/revise MESSAGE                 revient au checkpoint et rejoue la cible
+/replan MESSAGE                 redécoupe seulement la tâche active
+/approval auto|commands|all     auto: connu seulement; commands: TASK auto, reste demandé; all: commandes+éditions
+/approve A-... [once|run]       autorise une opération en attente
+/deny A-... [RAISON]            refuse une opération
+/abort [RAISON]                 arrête en gardant état, preuves et worktree
+/detach                         quitte la saisie; le run continue
+
+L'affichage détaillé est permanent. Les raisonnements internes bruts sont masqués; les actions,
+preuves, décisions opérationnelles, fichiers et tests restent visibles.
 """.strip()
 
 
@@ -57,7 +72,7 @@ def input_worker(items: queue.Queue[str]) -> None:
             print("\nUtilise /pause, /abort ou /detach.")
 
 
-def pump_output(stream) -> None:
+def pump_output(stream: Any) -> None:
     try:
         for line in iter(stream.readline, ""):
             print(line, end="", flush=True)
@@ -65,9 +80,16 @@ def pump_output(stream) -> None:
         stream.close()
 
 
-def wait_for_run(repo: Path, old_names: set[str], process: subprocess.Popen[str]) -> str:
+def load_json(path: Path) -> dict[str, Any]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def wait_for_new_run(repo: Path, old_names: set[str], process: subprocess.Popen[str]) -> str:
     runs = repo / ".agent-runs"
-    deadline = time.monotonic() + 90
+    deadline = time.monotonic() + 120
     while process.poll() is None and time.monotonic() < deadline:
         if runs.exists():
             candidates = sorted(
@@ -84,52 +106,110 @@ def wait_for_run(repo: Path, old_names: set[str], process: subprocess.Popen[str]
     raise RuntimeError("Le nouveau run n'a pas créé son state.json")
 
 
-def control(repo: Path, run_name: str, action: str, message: str, target: str, files: list[str]) -> int:
+def control(
+    repo: Path, run_name: str, action: str, message: str, target: str,
+    files: list[str], request_id: str = "", scope: str = "once",
+) -> int:
     command = [sys.executable, str(repo / ".microagent" / "control.py"), action]
     if message:
         command.append(message)
     command.extend(["--repo", str(repo), "--run", run_name, "--target", target])
+    if request_id:
+        command.extend(["--request-id", request_id])
+    if scope:
+        command.extend(["--scope", scope])
     for path in files:
         command.extend(["--file", path])
     return subprocess.run(command, cwd=repo).returncode
 
 
+def display_pending(run_dir: Path, shown: set[str]) -> None:
+    approval_root = run_dir / "control" / "approvals" / "pending"
+    if approval_root.exists():
+        for path in sorted(approval_root.glob("*.json")):
+            payload = load_json(path)
+            request_id = str(payload.get("id", path.stem))
+            marker = f"approval:{request_id}"
+            if marker in shown:
+                continue
+            shown.add(marker)
+            print(
+                f"\n[AUTORISATION {request_id}] {payload.get('kind')} cible={payload.get('target')}\n"
+                f"{json.dumps(payload.get('payload'), ensure_ascii=False)[:1200]}\n"
+                f"/approve {request_id} ou /deny {request_id} raison",
+                flush=True,
+            )
+    state = load_json(run_dir / "state.json")
+    for item in state.get("questions", []):
+        if item.get("answered"):
+            continue
+        question_id = str(item.get("id"))
+        marker = f"question:{question_id}"
+        if marker in shown:
+            continue
+        shown.add(marker)
+        print(
+            f"\n[QUESTION {question_id} · {item.get('target')}]\n{item.get('question')}\n"
+            f"/answer {question_id} ta réponse",
+            flush=True,
+        )
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Orchestrateur LocalCode avec contrôle dans le même terminal")
-    parser.add_argument("task")
+    parser = argparse.ArgumentParser(description="Orchestrateur LocalCode résilient avec contrôle dans le même terminal")
+    parser.add_argument("task", nargs="?")
     parser.add_argument("--repo", default=".")
+    parser.add_argument("--resume", default="")
     args = parser.parse_args()
     repo = Path(args.repo).resolve()
     runs = repo / ".agent-runs"
     old_names = {path.name for path in runs.iterdir()} if runs.exists() else set()
 
+    command = [sys.executable, str(repo / ".microagent" / "resilient_orchestrator.py"), "--repo", str(repo)]
+    if args.resume:
+        command.extend(["--resume", args.resume])
+    elif args.task:
+        command.insert(2, args.task)
+    else:
+        print("Une mission ou --resume est requis", file=sys.stderr)
+        return 2
+
     process = subprocess.Popen(
-        [sys.executable, str(repo / ".microagent" / "orchestrator.py"), args.task, "--repo", str(repo)],
-        cwd=repo,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        bufsize=1,
+        command, cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1,
     )
     assert process.stdout is not None
     threading.Thread(target=pump_output, args=(process.stdout,), daemon=True).start()
 
     try:
-        run_name = wait_for_run(repo, old_names, process)
-    except RuntimeError as exc:
+        if args.resume:
+            if args.resume == "latest":
+                candidates = sorted(
+                    (path for path in runs.iterdir() if path.is_dir() and (path / "state.json").exists()),
+                    key=lambda path: path.stat().st_mtime,
+                    reverse=True,
+                )
+                run_name = candidates[0].name
+            else:
+                run_name = Path(args.resume).name
+        else:
+            run_name = wait_for_new_run(repo, old_names, process)
+    except Exception as exc:
         if process.poll() is None:
             process.terminate()
         print(f"ERREUR: {exc}", file=sys.stderr)
         return process.wait()
 
+    run_dir = runs / run_name
     print(f"\nConsole attachée au run {run_name}. Tape /help.")
     target = "current"
     files: list[str] = []
     items: queue.Queue[str] = queue.Queue()
     threading.Thread(target=input_worker, args=(items,), daemon=True).start()
     detached = False
+    shown: set[str] = set()
 
     while process.poll() is None:
+        display_pending(run_dir, shown)
         if detached:
             time.sleep(0.25)
             continue
@@ -173,13 +253,33 @@ def main() -> int:
                 continue
             print("Fichiers: " + (", ".join(files) if files else "aucun"))
             continue
+
+        request_id = ""
+        scope = "once"
+        actual_message = message
+        if action in {"approve", "deny", "answer"}:
+            parts = message.split(maxsplit=2)
+            if not parts:
+                print(f"/{action} exige un identifiant")
+                continue
+            request_id = parts[0]
+            if action == "approve":
+                if len(parts) >= 2 and parts[1] in {"once", "run"}:
+                    scope = parts[1]
+                    actual_message = parts[2] if len(parts) == 3 else ""
+                else:
+                    actual_message = ""
+            else:
+                actual_message = " ".join(parts[1:])
+        if action == "approval":
+            actual_message = message.lower()
         if action not in ACTIONS:
             print(f"Commande inconnue: /{action}. Tape /help.")
             continue
-        if action in NEEDS_MESSAGE and not message:
+        if action in NEEDS_MESSAGE and not actual_message:
             print(f"/{action} exige un message.")
             continue
-        code = control(repo, run_name, action, message, target, files)
+        code = control(repo, run_name, action, actual_message, target, files, request_id, scope)
         if code != 0:
             print(f"Échec de /{action} (code {code}).")
         if action == "abort" and code == 0:

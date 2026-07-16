@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {"type": "string", "enum": ["PASS", "FAIL"]},
+    "summary": {"type": "string"},
+    "issues": {"type": "array", "maxItems": 5, "items": {"type": "string"}},
+    "verified_intervention_ids": {"type": "array", "maxItems": 8, "items": {"type": "string"}}
+  },
+  "required": ["verdict", "summary", "issues", "verified_intervention_ids"]
+}

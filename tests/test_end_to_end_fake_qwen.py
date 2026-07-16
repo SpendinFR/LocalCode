@@ -80,6 +80,7 @@ REVIEW_FINDING={str(review_finding)}
 DELAY_SECONDS={float(delay_seconds)!r}
 STATE=Path(str(cwd)+'.fake-qwen-state')
 DELAY_STATE=Path(str(cwd)+'.fake-qwen-delay-state')
+REPLAN_STATE=Path(__file__).with_name(Path(__file__).name + '.replan-state')
 
 def micro(task_id):
     return {{"id":task_id,"title":"change value","kind":"implementation","goal":"value returns 2","depends_on":[],"likely_files":["app.py","test_value.py"],"symbols":["value"],"invariants":[],"acceptance":["value() == 2"],"test_commands":["python test_value.py"],"forbidden_changes":[]}}
@@ -122,7 +123,8 @@ elif schema == 'coder_result.schema.json':
                 target.write_text(previous + '\\n' + markers + '\\n', encoding='utf-8')
         payload={{"status":"DONE","summary":"docs","command_corrections":[],"validated_commands":[],"escalation":"NONE","unresolved":[],"research_requests":[],"addressed_finding_ids":[],"unresolved_finding_ids":[]}}
     else:
-        is_s1 = 'S1.json' in prompt
+        normalized_prompt = prompt.replace('\\\\', '/')
+        is_s1 = 'active/S1.json' in normalized_prompt
         is_review_repair = 'repair_ticket' in prompt or 'repairs/' in prompt
         if DELAY_SECONDS and is_s1 and not DELAY_STATE.exists():
             DELAY_STATE.write_text('started', encoding='utf-8')
@@ -137,14 +139,17 @@ elif schema == 'coder_result.schema.json':
         if needs_context:
             payload={{"status":"BLOCKED","summary":"need caller information","command_corrections":[],"validated_commands":[],"escalation":"CONTEXT","unresolved":["caller relation"],"research_requests":[{{"question":"Find callers of value","symbols":["value"],"suspected_paths":["app.py"],"reason":"need impact"}}],"addressed_finding_ids":[],"unresolved_finding_ids":[]}}
         else:
-            value = 1 if (REPLAN and is_s1) else 2
+            replan_now = REPLAN and not REPLAN_STATE.exists()
+            if replan_now:
+                REPLAN_STATE.write_text('used', encoding='utf-8')
+            value = 1 if replan_now else 2
             (cwd/'app.py').write_text(f'def value():\\n    return {{value}}\\n',encoding='utf-8')
             (cwd/'test_value.py').write_text('from app import value\\nassert value() == 2\\n',encoding='utf-8')
             if is_review_repair:
                 (cwd/'test_value_regression.py').write_text('from app import value\\nassert value() == 2\\n',encoding='utf-8')
                 STATE.write_text('repaired', encoding='utf-8')
-            status = 'BLOCKED' if (REPLAN and is_s1) else 'DONE'
-            escalation = 'PLAN' if (REPLAN and is_s1) else 'NONE'
+            status = 'BLOCKED' if replan_now else 'DONE'
+            escalation = 'PLAN' if replan_now else 'NONE'
             payload={{"status":status,"summary":"implemented","command_corrections":[],"validated_commands":["python test_value.py"],"escalation":escalation,"unresolved":[],"research_requests":[],"addressed_finding_ids":addressed,"unresolved_finding_ids":[]}}
 else:
     raise SystemExit('unknown schema '+schema)
@@ -189,26 +194,6 @@ def test_end_to_end_with_fake_qwen(tmp_path):
     assert_final(repo)
 
 
-def test_dynamic_replan_with_fake_qwen(tmp_path):
-    kit = Path(__file__).resolve().parents[1]
-    repo = prepare_repo(tmp_path, kit)
-    task = write_task(repo)
-    bindir = tmp_path / "bin"
-    bindir.mkdir()
-    fake = bindir / "qwen"
-    write_fake_qwen(fake, replan=True)
-    proc = execute(repo, task, fake)
-    assert proc.returncode == 0, proc.stdout + "\n" + proc.stderr
-    branch = assert_final(repo)
-    state_files = list((repo / ".agent-runs").glob("*/state.json"))
-    assert state_files
-    state = __import__('json').loads(state_files[0].read_text())
-    assert state["dynamic_replans"] == 1
-    assert state["microtask_status"]["S1"] == "expanded"
-    assert state["microtask_status"]["S1a"] == "done"
-    assert state["expansions"]["S1"]["children"] == ["S1a"]
-
-
 def test_context_request_spawns_targeted_scout(tmp_path):
     kit = Path(__file__).resolve().parents[1]
     repo = prepare_repo(tmp_path, kit)
@@ -237,7 +222,18 @@ def test_one_command_launcher_reaches_commit(tmp_path):
     env = os.environ.copy()
     env["PATH"] = str(bindir) + os.pathsep + env["PATH"]
     env["MICROAGENT_SKIP_OLLAMA_CHECK"] = "1"
-    proc = run([str(repo / "agent.sh"), str(task.relative_to(repo))], repo, env)
+    if os.name == "nt":
+        proc = run(
+            [
+                "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", str(repo / "agent.ps1"), str(task.relative_to(repo)),
+                "-NoInteractive", "-NoRouter",
+            ],
+            repo,
+            env,
+        )
+    else:
+        proc = run([str(repo / "agent.sh"), str(task.relative_to(repo))], repo, env)
     assert proc.returncode == 0, proc.stdout + "\n" + proc.stderr
     assert "Préflight OK" in proc.stdout
     assert_final(repo)

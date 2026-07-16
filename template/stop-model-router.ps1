@@ -1,7 +1,9 @@
 param([int]$Port = 8080, [string]$ApiKey = "local")
 $ErrorActionPreference = "Stop"
 $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path
-$PidFile = Join-Path $Repo ".microagent\llama-router.pid"
+$PidFile = Join-Path $Repo ".agent-runs\router\llama-router.pid"
+$LegacyPidFile = Join-Path $Repo ".microagent\llama-router.pid"
+if (-not (Test-Path $PidFile) -and (Test-Path $LegacyPidFile)) { $PidFile = $LegacyPidFile }
 if (-not (Test-Path $PidFile)) { Write-Host "Aucun PID enregistré."; exit 0 }
 $Value = (Get-Content $PidFile -Raw).Trim()
 if ($Value -match '^\d+$') {
