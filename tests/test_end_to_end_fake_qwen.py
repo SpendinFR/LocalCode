@@ -69,7 +69,7 @@ import json, sys, time
 from pathlib import Path
 args=sys.argv[1:]
 if '--help' in args:
-    print('--json-schema --max-session-turns --max-tool-calls --max-wall-time --exclude-tools --approval-mode --model --output-format --sandbox')
+    print('--json-schema --max-session-turns --max-tool-calls --max-wall-time --exclude-tools --approval-mode --model --output-format --sandbox --experimental-lsp')
     raise SystemExit(0)
 prompt=args[args.index('-p')+1]
 schema=Path(args[args.index('--json-schema')+1][1:]).name

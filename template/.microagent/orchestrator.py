@@ -473,6 +473,8 @@ class Orchestrator:
                 "--max-wall-time", "--exclude-tools", "--approval-mode",
                 "--model", "--output-format",
             ]
+            if self.cfg.get("enable_lsp", True):
+                required_flags.append("--experimental-lsp")
             if self.cfg.get("sandbox"):
                 required_flags.append("--sandbox")
             missing = [flag for flag in required_flags if flag not in help_text]
@@ -608,6 +610,7 @@ class Orchestrator:
 
             command = [
                 "qwen",
+                *(["--experimental-lsp"] if self.cfg.get("enable_lsp", True) else []),
                 "-p",
                 effective_prompt,
                 "--model",

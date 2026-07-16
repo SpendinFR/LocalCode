@@ -115,5 +115,6 @@
   "max_human_global_revisions": 3,
   "max_human_prompt_records": 12,
   "max_human_prompt_chars": 12000,
-  "max_human_doc_review_repairs": 1
+  "max_human_doc_review_repairs": 1,
+  "enable_lsp": true
 }

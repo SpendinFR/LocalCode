@@ -14,7 +14,7 @@
     "REMPLACER_PAR_TYPECHECK_LINT_BUILD_ET_SUITE_COMPLETE"
   ],
   "forbidden_paths": [
-    ".env", ".env.*", "**/secrets/**", "**/*.pem", "**/*.key", ".microagent/**", ".qwen/**"
+    ".env", ".env.*", "**/secrets/**", "**/*.pem", "**/*.key", ".microagent/**", ".qwen/**", ".lsp.json"
   ],
   "command_timeout_seconds": 1800,
   "commit_message": "feat: complete TASK-000"

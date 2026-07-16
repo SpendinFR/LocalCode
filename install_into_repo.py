@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import json
+import subprocess
 import argparse, shutil, sys
 from datetime import datetime
 from pathlib import Path
@@ -51,6 +54,39 @@ def merge_agents(repo: Path, backup_root: Path) -> None:
         text = existing.rstrip() + ("\n\n" if existing.strip() else "") + block + "\n"
     path.write_text(text, encoding="utf-8")
 
+def configure_python_lsp(repo: Path) -> bool:
+    path = repo / ".lsp.json"
+    if path.exists():
+        return False
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "*.py"],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+    )
+    if tracked.returncode != 0 or not tracked.stdout.strip():
+        return False
+
+    config = {
+        "python": {
+            "command": sys.executable,
+            "args": ["-m", "pylsp"],
+            "extensionToLanguage": {".py": "python"},
+            "startupTimeout": 30000,
+            "shutdownTimeout": 5000,
+            "restartOnCrash": True,
+            "maxRestarts": 2,
+            "trustRequired": False,
+        }
+    }
+    path.write_text(
+        json.dumps(config, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return True
+
+
 def update_gitignore(repo: Path, backup_root: Path) -> None:
     path = repo / ".gitignore"
     if path.exists(): backup(path, repo, backup_root)
@@ -75,8 +111,11 @@ def main() -> int:
     backup_root = repo / ".local-microagent-backup" / datetime.now().strftime("%Y%m%d-%H%M%S")
     copy_template(repo, backup_root)
     merge_agents(repo, backup_root)
+    lsp_created = configure_python_lsp(repo)
     update_gitignore(repo, backup_root)
     print(f"Kit V7 installé dans {repo}")
+    if lsp_created:
+        print("LSP Python configuré automatiquement dans .lsp.json")
     print(f"Sauvegardes: {backup_root}")
     print("Crée une mission .tasks/TASK-XXX.md puis lance en une commande:")
     print(r"  .\agent.ps1 .tasks\TASK-XXX.md   # Windows PowerShell")
